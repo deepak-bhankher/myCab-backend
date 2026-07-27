@@ -24,16 +24,17 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// Save/update this owner's FCM token — the app calls this after login
 router.put("/save-token", async (req, res) => {
   try {
-    const { mobileNumber, expoPushToken } = req.body;
+    const { mobileNumber, fcmToken } = req.body;
     const owner = await Owner.findOneAndUpdate(
       { mobileNumber },
-      { expoPushToken },
+      { fcmToken },
       { new: true }
     );
     if (!owner) return res.status(404).json({ message: "Owner not found" });
-    res.status(200).json({ message: "Push token saved", owner });
+    res.status(200).json({ message: "FCM token saved", owner });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -14,7 +14,7 @@ const OwnerSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  expoPushToken: {
+  fcmToken: {
     type: String,
     default: null,
   },

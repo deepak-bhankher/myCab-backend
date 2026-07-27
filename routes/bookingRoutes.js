@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Booking = require("../models/Booking");
 const Owner = require("../models/Owner");
-const sendPushNotification = require("../lib/sendPushNotification");
+const { messaging } = require("../config/firebaseAdmin");
 
 router.post("/", async (req, res) => {
   try {
@@ -18,21 +18,37 @@ router.post("/", async (req, res) => {
     });
     await newBooking.save();
 
-    const owner = await Owner.findOne({ expoPushToken: { $ne: null } });
-    if (owner && owner.expoPushToken) {
-      await sendPushNotification(
-        owner.expoPushToken,
-        "🚕 New Booking!",
-        `${passengerName} | ${pickupLocation} → ${dropLocation}`,
-        {
+    // ---- Send a real push notification (works even if the app is closed) ----
+    const owner = await Owner.findOne({ fcmToken: { $ne: null } });
+    if (owner && owner.fcmToken) {
+      const message = {
+        token: owner.fcmToken,
+        notification: {
+          title: "🚕 New Booking!",
+          body: `${passengerName} | ${pickupLocation} → ${dropLocation}`,
+        },
+        data: {
           bookingId: newBooking._id.toString(),
           passengerName,
           phoneNumber,
           pickupLocation,
           dropLocation,
           fare: String(fare),
-        }
-      );
+        },
+        android: {
+          priority: "high",
+          notification: {
+            sound: "default",
+            channelId: "bookings",
+          },
+        },
+      };
+      try {
+        await messaging.send(message);
+        console.log("Push notification sent to owner");
+      } catch (notifErr) {
+        console.log("Push notification error:", notifErr.message);
+      }
     }
 
     res.status(201).json({ message: "Booking Created", booking: newBooking });
