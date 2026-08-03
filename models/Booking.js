@@ -17,6 +17,11 @@ const BookingSchema = new mongoose.Schema({
         type:String,
         required:true
     },
+    carType:{
+        type:String,
+        enum:['small','large'],
+        default:'small'
+    },
     fare: {
         type:Number,
         required:true
