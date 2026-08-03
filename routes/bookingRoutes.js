@@ -6,7 +6,7 @@ const { messaging } = require("../config/firebaseAdmin");
 
 router.post("/", async (req, res) => {
   try {
-    const { passengerName, phoneNumber, pickupLocation, dropLocation, fare } =
+    const { passengerName, phoneNumber, pickupLocation, dropLocation, fare, carType } =
       req.body;
 
     const newBooking = new Booking({
@@ -15,6 +15,7 @@ router.post("/", async (req, res) => {
       pickupLocation,
       dropLocation,
       fare,
+      carType,
     });
     await newBooking.save();
 
@@ -34,6 +35,7 @@ router.post("/", async (req, res) => {
           pickupLocation,
           dropLocation,
           fare: String(fare),
+          carType: newBooking.carType,
         },
         android: {
           priority: "high",
