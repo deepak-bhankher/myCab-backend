@@ -6,8 +6,15 @@ const { messaging } = require("../config/firebaseAdmin");
 
 router.post("/", async (req, res) => {
   try {
-    const { passengerName, phoneNumber, pickupLocation, dropLocation, fare, carType } =
-      req.body;
+    const {
+      passengerName,
+      phoneNumber,
+      pickupLocation,
+      dropLocation,
+      fare,
+      carType,
+      rideDateTime,
+    } = req.body;
 
     const newBooking = new Booking({
       passengerName,
@@ -16,17 +23,25 @@ router.post("/", async (req, res) => {
       dropLocation,
       fare,
       carType,
+      rideDateTime,
     });
     await newBooking.save();
 
     // ---- Send a real push notification (works even if the app is closed) ----
     const owner = await Owner.findOne({ fcmToken: { $ne: null } });
     if (owner && owner.fcmToken) {
+      const rideDateFormatted = new Date(rideDateTime).toLocaleString("en-IN", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
       const message = {
         token: owner.fcmToken,
         notification: {
           title: "🚕 New Booking!",
-          body: `${passengerName} | ${pickupLocation} → ${dropLocation}`,
+          body: `${passengerName} | ${pickupLocation} → ${dropLocation} | ${rideDateFormatted}`,
         },
         data: {
           bookingId: newBooking._id.toString(),
@@ -36,6 +51,7 @@ router.post("/", async (req, res) => {
           dropLocation,
           fare: String(fare),
           carType: newBooking.carType,
+          rideDateTime: newBooking.rideDateTime.toISOString(),
         },
         android: {
           priority: "high",
