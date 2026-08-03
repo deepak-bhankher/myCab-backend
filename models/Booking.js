@@ -17,14 +17,20 @@ const BookingSchema = new mongoose.Schema({
         type:String,
         required:true
     },
-    carType:{
-        type:String,
-        enum:['small','large'],
-        default:'small'
-    },
     fare: {
         type:Number,
         required:true
+    },
+    carType: {
+        type: String,
+        enum: ['small', 'large'],
+        default: 'small'
+    },
+    // The date & time the passenger actually wants to travel.
+    // This can be today (immediate ride) or any future date (advance booking).
+    rideDateTime: {
+        type: Date,
+        required: true
     },
     status:{
         type:String,
