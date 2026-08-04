@@ -32,6 +32,12 @@ const BookingSchema = new mongoose.Schema({
         type: Date,
         required: true
     },
+    // URL of the passenger's ID photo (stored on Cloudinary) — used by the
+    // owner to verify the passenger is real before the ride.
+    idPhotoUrl: {
+        type: String,
+        default: null
+    },
     status:{
         type:String,
         enum:['Pending','Complete','Cancelled'],

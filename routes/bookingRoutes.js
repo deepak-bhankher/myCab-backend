@@ -1,10 +1,40 @@
 const express = require("express");
 const router = express.Router();
+const multer = require("multer");
 const Booking = require("../models/Booking");
 const Owner = require("../models/Owner");
 const { messaging } = require("../config/firebaseAdmin");
+const cloudinary = require("../config/cloudinary");
 
-router.post("/", async (req, res) => {
+// Files are received in memory (as a buffer), then streamed straight to
+// Cloudinary — nothing is ever written to Render's disk.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed for the ID photo"));
+    }
+  },
+});
+
+// Uploads a file buffer to Cloudinary and resolves with the secure URL.
+function uploadToCloudinary(buffer) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: "passenger-ids", resource_type: "image" },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result.secure_url);
+      }
+    );
+    stream.end(buffer);
+  });
+}
+
+router.post("/", upload.single("idPhoto"), async (req, res) => {
   try {
     const {
       passengerName,
@@ -16,6 +46,11 @@ router.post("/", async (req, res) => {
       rideDateTime,
     } = req.body;
 
+    let idPhotoUrl = null;
+    if (req.file) {
+      idPhotoUrl = await uploadToCloudinary(req.file.buffer);
+    }
+
     const newBooking = new Booking({
       passengerName,
       phoneNumber,
@@ -24,6 +59,7 @@ router.post("/", async (req, res) => {
       fare,
       carType,
       rideDateTime,
+      idPhotoUrl,
     });
     await newBooking.save();
 
@@ -52,6 +88,7 @@ router.post("/", async (req, res) => {
           fare: String(fare),
           carType: newBooking.carType,
           rideDateTime: newBooking.rideDateTime.toISOString(),
+          idPhotoUrl: idPhotoUrl || "",
         },
         android: {
           priority: "high",
