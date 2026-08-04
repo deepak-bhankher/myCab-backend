@@ -108,6 +108,7 @@ router.post("/", upload.single("idPhoto"), async (req, res) => {
 
     res.status(201).json({ message: "Booking Created", booking: newBooking });
   } catch (error) {
+    console.error("BOOKING CREATE ERROR:", error);
     res.status(500).json({ message: error.message });
   }
 });
