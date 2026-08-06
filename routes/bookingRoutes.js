@@ -134,13 +134,43 @@ router.get("/:id", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, cancelledBy } = req.body;
     const updatedBooking = await Booking.findByIdAndUpdate(
       req.params.id,
       { status },
       { new: true }
     );
     if (!updatedBooking) return res.status(404).json({ error: "Booking not found" });
+
+    // Only notify the owner when the PASSENGER cancels — if the owner
+    // themselves changes the status from their app, no notification needed.
+    if (status === "Cancelled" && cancelledBy === "passenger") {
+      const owner = await Owner.findOne({ fcmToken: { $ne: null } });
+      if (owner && owner.fcmToken) {
+        const message = {
+          token: owner.fcmToken,
+          notification: {
+            title: "❌ Booking Cancelled",
+            body: `${updatedBooking.passengerName} cancelled their ride: ${updatedBooking.pickupLocation} → ${updatedBooking.dropLocation}`,
+          },
+          data: {
+            bookingId: updatedBooking._id.toString(),
+            type: "booking_cancelled",
+          },
+          android: {
+            priority: "high",
+            notification: { sound: "default", channelId: "bookings" },
+          },
+        };
+        try {
+          await messaging.send(message);
+          console.log("Cancellation notification sent to owner");
+        } catch (notifErr) {
+          console.log("Cancellation notification error:", notifErr.message);
+        }
+      }
+    }
+
     res.status(200).json({ message: "Status Updated", booking: updatedBooking });
   } catch (err) {
     res.status(500).json({ error: err.message });
