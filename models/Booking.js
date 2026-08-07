@@ -43,6 +43,14 @@ const BookingSchema = new mongoose.Schema({
         enum:['Pending','Complete','Cancelled'],
         default:'Pending'
     },
+    // Who cancelled this booking, if it's Cancelled — lets the Owner app
+    // hide the status buttons and show a message when the PASSENGER cancels,
+    // while leaving buttons intact if the owner cancelled it themselves.
+    cancelledBy: {
+        type: String,
+        enum: ['owner', 'passenger', null],
+        default: null
+    },
     bookingDate:{
         type:Date,
         default:Date.now

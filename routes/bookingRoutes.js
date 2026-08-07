@@ -135,9 +135,17 @@ router.get("/:id", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { status, cancelledBy } = req.body;
+
+    const updateFields = { status };
+    // Only set cancelledBy when actually cancelling — keeps old data clean
+    // for Pending/Completed updates.
+    if (status === "Cancelled") {
+      updateFields.cancelledBy = cancelledBy || "owner";
+    }
+
     const updatedBooking = await Booking.findByIdAndUpdate(
       req.params.id,
-      { status },
+      updateFields,
       { new: true }
     );
     if (!updatedBooking) return res.status(404).json({ error: "Booking not found" });
