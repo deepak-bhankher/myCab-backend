@@ -188,7 +188,7 @@ router.put("/:id", async (req, res) => {
     if (ownerInitiated && updatedBooking.fcmToken) {
       const statusMessages = {
         Pending: { title: "🕐 Booking Pending", body: "Your ride is pending confirmation." },
-        Completed: { title: "✅ Ride Completed", body: "Your ride has been marked complete. Thanks for riding with us!" },
+        Complete: { title: "✅ Ride Completed", body: "Your ride has been marked complete. Thanks for riding with us!" },
         Cancelled: { title: "❌ Booking Cancelled", body: "Your ride has been cancelled by the operator." },
       };
       const content = statusMessages[status];
