@@ -46,7 +46,7 @@ const BookingSchema = new mongoose.Schema({
     },
     status:{
         type:String,
-        enum:['Pending','Complete','Cancelled'],
+        enum:['Pending','Completed','Cancelled'],
         default:'Pending'
     },
     // Who cancelled this booking, if it's Cancelled — lets the Owner app
