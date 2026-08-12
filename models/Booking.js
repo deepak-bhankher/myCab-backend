@@ -38,6 +38,12 @@ const BookingSchema = new mongoose.Schema({
         type: String,
         default: null
     },
+    // The passenger's device push-notification token, captured at booking
+    // time — lets the backend notify them when the owner updates status.
+    fcmToken: {
+        type: String,
+        default: null
+    },
     status:{
         type:String,
         enum:['Pending','Complete','Cancelled'],

@@ -44,6 +44,7 @@ router.post("/", upload.single("idPhoto"), async (req, res) => {
       fare,
       carType,
       rideDateTime,
+      fcmToken,
     } = req.body;
 
     let idPhotoUrl = null;
@@ -60,6 +61,7 @@ router.post("/", upload.single("idPhoto"), async (req, res) => {
       carType,
       rideDateTime,
       idPhotoUrl,
+      fcmToken,
     });
     await newBooking.save();
 
@@ -175,6 +177,43 @@ router.put("/:id", async (req, res) => {
           console.log("Cancellation notification sent to owner");
         } catch (notifErr) {
           console.log("Cancellation notification error:", notifErr.message);
+        }
+      }
+    }
+
+    // Notify the PASSENGER whenever the OWNER updates the status
+    // (Pending / Completed / Cancelled) — but not when the passenger
+    // cancelled it themselves, since they already know.
+    const ownerInitiated = !(status === "Cancelled" && cancelledBy === "passenger");
+    if (ownerInitiated && updatedBooking.fcmToken) {
+      const statusMessages = {
+        Pending: { title: "🕐 Booking Pending", body: "Your ride is pending confirmation." },
+        Completed: { title: "✅ Ride Completed", body: "Your ride has been marked complete. Thanks for riding with us!" },
+        Cancelled: { title: "❌ Booking Cancelled", body: "Your ride has been cancelled by the operator." },
+      };
+      const content = statusMessages[status];
+      if (content) {
+        const passengerMessage = {
+          token: updatedBooking.fcmToken,
+          notification: {
+            title: content.title,
+            body: content.body,
+          },
+          data: {
+            bookingId: updatedBooking._id.toString(),
+            type: "status_update",
+            status,
+          },
+          android: {
+            priority: "high",
+            notification: { sound: "default", channelId: "bookings" },
+          },
+        };
+        try {
+          await messaging.send(passengerMessage);
+          console.log("Status update notification sent to passenger");
+        } catch (notifErr) {
+          console.log("Passenger notification error:", notifErr.message);
         }
       }
     }
