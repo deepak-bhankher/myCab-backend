@@ -21,7 +21,7 @@ mongoose
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/fare", fareRoutes);
 app.use("/api/owner", ownerRoutes);
-
+app.use("/api/passengers", require("./routes/Passengerauthroutes"));
 
 app.get("/", (req, res) => {
   res.send("MyCabExpress Backend Running 🚕");
