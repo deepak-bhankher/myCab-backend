@@ -3,7 +3,12 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const Owner = require("../models/Owner");
 const SignupVerification = require("../models/SignupVerification");
-const { sendOtpEmail, sendSignupOtpEmail } = require("../lib/sendEmail");
+const {
+  sendOtpEmail,
+  sendSignupOtpEmail,
+  sendOwnerLoginAlertEmail,
+  sendOwnerLogoutAlertEmail,
+} = require("../lib/sendEmail");
 
 function generateOtp() {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -124,9 +129,36 @@ router.post("/login", async (req, res) => {
     delete ownerResponse.resetOtp;
     delete ownerResponse.resetOtpExpiry;
 
+    // Dispatch login security email alert to owner asynchronously
+    if (owner.email) {
+      sendOwnerLoginAlertEmail(owner.email, owner.name).catch((err) =>
+        console.error("Failed to send owner login alert email:", err)
+      );
+    }
+
     res.status(200).json({ message: "Login Success", owner: ownerResponse });
   } catch (error) {
     console.error("Owner login error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// 3b. Logout Owner — dispatches logout security alert email
+// ---------------------------------------------------------------------------
+router.post("/logout", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (email) {
+      const normalizedEmail = email.toLowerCase().trim();
+      const owner = await Owner.findOne({ email: normalizedEmail });
+      sendOwnerLogoutAlertEmail(normalizedEmail, owner?.name || "").catch((err) =>
+        console.error("Failed to send owner logout alert email:", err)
+      );
+    }
+    res.status(200).json({ message: "Logged out successfully" });
+  } catch (error) {
+    console.error("Owner logout error:", error);
     res.status(500).json({ message: error.message });
   }
 });
