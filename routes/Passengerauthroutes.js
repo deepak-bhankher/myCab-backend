@@ -3,7 +3,12 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const Passenger = require("../models/Passenger");
 const SignupVerification = require("../models/SignupVerification");
-const { sendOtpEmail, sendSignupOtpEmail } = require("../lib/sendEmail");
+const {
+  sendOtpEmail,
+  sendSignupOtpEmail,
+  sendLoginAlertEmail,
+  sendLogoutAlertEmail,
+} = require("../lib/sendEmail");
 
 function generateOtp() {
   return String(Math.floor(100000 + Math.random() * 900000)); // 6-digit code
@@ -115,7 +120,31 @@ router.post("/login", async (req, res) => {
     delete response.resetOtp;
     delete response.resetOtpExpiry;
 
+    // Send login alert email asynchronously (non-blocking)
+    sendLoginAlertEmail(passenger.email, passenger.name).catch((err) =>
+      console.error("Failed to send login alert email:", err)
+    );
+
     res.status(200).json({ message: "Login successful", passenger: response });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Logout
+// ---------------------------------------------------------------------------
+router.post("/logout", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (email) {
+      const normalizedEmail = email.toLowerCase().trim();
+      const passenger = await Passenger.findOne({ email: normalizedEmail });
+      sendLogoutAlertEmail(normalizedEmail, passenger?.name || "").catch((err) =>
+        console.error("Failed to send logout alert email:", err)
+      );
+    }
+    res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
