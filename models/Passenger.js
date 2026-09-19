@@ -17,6 +17,10 @@ const PassengerSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    phone: {
+      type: String,
+      default: "",
+    },
     resetOtp: {
       type: String,
     },
