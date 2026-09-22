@@ -144,19 +144,24 @@ router.post("/login", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// 3b. Logout Owner — dispatches logout security alert email
+// 3b. Logout Owner — dispatches logout security alert email and clears FCM push notification token
 // ---------------------------------------------------------------------------
 router.post("/logout", async (req, res) => {
   try {
     const { email } = req.body;
     if (email) {
       const normalizedEmail = email.toLowerCase().trim();
-      const owner = await Owner.findOne({ email: normalizedEmail });
+      // Clear fcmToken so logged-out owner does NOT receive any push notifications
+      const owner = await Owner.findOneAndUpdate(
+        { email: normalizedEmail },
+        { $set: { fcmToken: null } },
+        { new: true }
+      );
       sendOwnerLogoutAlertEmail(normalizedEmail, owner?.name || "").catch((err) =>
         console.error("Failed to send owner logout alert email:", err)
       );
     }
-    res.status(200).json({ message: "Logged out successfully" });
+    res.status(200).json({ message: "Logged out successfully and notifications disabled" });
   } catch (error) {
     console.error("Owner logout error:", error);
     res.status(500).json({ message: error.message });

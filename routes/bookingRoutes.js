@@ -65,8 +65,8 @@ router.post("/", upload.single("idPhoto"), async (req, res) => {
     });
     await newBooking.save();
 
-    // ---- Send a real push notification (works even if the app is closed) ----
-    const owner = await Owner.findOne({ fcmToken: { $ne: null } });
+    // ---- Send a real push notification (only if owner is currently logged in) ----
+    const owner = await Owner.findOne({ fcmToken: { $exists: true, $ne: null, $nin: ["", null] } });
     if (owner && owner.fcmToken) {
       const rideDateFormatted = new Date(rideDateTime).toLocaleString("en-IN", {
         day: "numeric",
@@ -155,7 +155,7 @@ router.put("/:id", async (req, res) => {
     // Only notify the owner when the PASSENGER cancels — if the owner
     // themselves changes the status from their app, no notification needed.
     if (status === "Cancelled" && cancelledBy === "passenger") {
-      const owner = await Owner.findOne({ fcmToken: { $ne: null } });
+      const owner = await Owner.findOne({ fcmToken: { $exists: true, $ne: null, $nin: ["", null] } });
       if (owner && owner.fcmToken) {
         const message = {
           token: owner.fcmToken,
