@@ -49,16 +49,13 @@ router.post("/send-signup-otp", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Register (with OTP verification)
+// Register (supports direct signup or with OTP verification)
 // ---------------------------------------------------------------------------
-router.post("/register", async (req, res) => {
+const handleRegister = async (req, res) => {
   try {
     const { name, email, password, phone, otp } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Name, email and password are required" });
-    }
-    if (!otp) {
-      return res.status(400).json({ message: "Verification code (OTP) is required" });
     }
 
     const normalizedEmail = email.toLowerCase().trim();
@@ -67,13 +64,19 @@ router.post("/register", async (req, res) => {
       return res.status(409).json({ message: "An account with this email already exists" });
     }
 
-    const verification = await SignupVerification.findOne({ email: normalizedEmail });
-    if (!verification || new Date() > verification.expiresAt) {
-      return res.status(400).json({ message: "Verification code has expired. Please request a new code." });
-    }
+    // If OTP was provided, verify it against SignupVerification
+    if (otp) {
+      const verification = await SignupVerification.findOne({ email: normalizedEmail });
+      if (!verification || new Date() > verification.expiresAt) {
+        return res.status(400).json({ message: "Verification code has expired. Please request a new code." });
+      }
 
-    if (verification.otp !== String(otp).trim()) {
-      return res.status(400).json({ message: "Incorrect verification code. Please check and try again." });
+      if (verification.otp !== String(otp).trim()) {
+        return res.status(400).json({ message: "Incorrect verification code. Please check and try again." });
+      }
+
+      // Remove verification record now that OTP is confirmed
+      await SignupVerification.deleteOne({ email: normalizedEmail });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -81,12 +84,9 @@ router.post("/register", async (req, res) => {
       name: name.trim(),
       email: normalizedEmail,
       password: hashedPassword,
-      phone: phone ? phone.trim() : "",
+      phone: phone ? String(phone).trim() : "",
     });
     await passenger.save();
-
-    // Remove the verification record now that account is created
-    await SignupVerification.deleteOne({ email: normalizedEmail });
 
     const response = passenger.toObject();
     delete response.password;
@@ -95,24 +95,38 @@ router.post("/register", async (req, res) => {
 
     res.status(201).json({ message: "Account created", passenger: response });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Passenger register error:", error);
+    res.status(500).json({ message: error.message || "Failed to create account" });
   }
-});
+};
+
+router.post("/register", handleRegister);
+router.post("/signup", handleRegister);
 
 // ---------------------------------------------------------------------------
-// Login
+// Login (supports Email OR 10-Digit Mobile Number)
 // ---------------------------------------------------------------------------
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    const passenger = await Passenger.findOne({ email: email?.toLowerCase().trim() });
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email or phone number and password are required" });
+    }
+
+    const identifier = email.trim();
+    const isEmail = /^\S+@\S+\.\S+$/.test(identifier);
+    const query = isEmail
+      ? { email: identifier.toLowerCase() }
+      : { phone: identifier.replace(/\D/g, "") };
+
+    const passenger = await Passenger.findOne(query);
     if (!passenger) {
-      return res.status(401).json({ message: "Invalid email or password" });
+      return res.status(401).json({ message: "Invalid email/phone or password" });
     }
 
     const isMatch = await bcrypt.compare(password, passenger.password);
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid email or password" });
+      return res.status(401).json({ message: "Invalid email/phone or password" });
     }
 
     const response = passenger.toObject();
@@ -121,13 +135,16 @@ router.post("/login", async (req, res) => {
     delete response.resetOtpExpiry;
 
     // Send login alert email asynchronously (non-blocking)
-    sendLoginAlertEmail(passenger.email, passenger.name).catch((err) =>
-      console.error("Failed to send login alert email:", err)
-    );
+    if (passenger.email) {
+      sendLoginAlertEmail(passenger.email, passenger.name).catch((err) =>
+        console.error("Failed to send login alert email:", err.message)
+      );
+    }
 
     res.status(200).json({ message: "Login successful", passenger: response });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Passenger login error:", error);
+    res.status(500).json({ message: error.message || "Failed to log in" });
   }
 });
 
