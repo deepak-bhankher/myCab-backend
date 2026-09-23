@@ -9,6 +9,12 @@ const BookingSchema = new mongoose.Schema({
         type:String,
         required:true
     },
+    passengerEmail:{
+        type:String,
+        default:null,
+        lowercase:true,
+        trim:true
+    },
     pickupLocation:{
         type:String,
         required:true

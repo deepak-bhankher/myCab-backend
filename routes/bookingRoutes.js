@@ -39,6 +39,7 @@ router.post("/", upload.single("idPhoto"), async (req, res) => {
     const {
       passengerName,
       phoneNumber,
+      passengerEmail,
       pickupLocation,
       dropLocation,
       fare,
@@ -55,6 +56,7 @@ router.post("/", upload.single("idPhoto"), async (req, res) => {
     const newBooking = new Booking({
       passengerName,
       phoneNumber,
+      passengerEmail: passengerEmail ? passengerEmail.toLowerCase().trim() : null,
       pickupLocation,
       dropLocation,
       fare,
@@ -117,7 +119,25 @@ router.post("/", upload.single("idPhoto"), async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
-    const bookings = await Booking.find().sort({ bookingDate: -1 });
+    const { phone, email } = req.query;
+    let query = {};
+    const cleanEmail = email ? email.toLowerCase().trim() : null;
+    const cleanPhone = phone ? phone.trim() : null;
+
+    if (cleanEmail && cleanPhone) {
+      query = {
+        $or: [
+          { passengerEmail: cleanEmail },
+          { phoneNumber: cleanPhone }
+        ]
+      };
+    } else if (cleanEmail) {
+      query = { passengerEmail: cleanEmail };
+    } else if (cleanPhone) {
+      query = { phoneNumber: cleanPhone };
+    }
+
+    const bookings = await Booking.find(query).sort({ bookingDate: -1 });
     res.status(200).json(bookings);
   } catch (error) {
     res.status(500).json({ message: error.message });
